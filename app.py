@@ -1,33 +1,61 @@
-# filename: mistral_chat_bot.py
-# Run with: python app.py
-
+# streamlit_app.py
+import os
+import streamlit as st
 from mistralai import Mistral
 
-# ⚠️ Directly embedding API keys is unsafe. Use env vars in production.
-API_KEY = "5y9uaQXlvqH9dR3tVxxSsdl07G1ujJjw"
+st.set_page_config(page_title="Mistral Chat", page_icon="🤖")
 
-client = Mistral(api_key=API_KEY)
+# --- API key handling ---
+api_key = os.getenv("MISTRAL_API_KEY") or st.sidebar.text_input(
+    "MISTRAL_API_KEY", type="password", help="Prefer Streamlit Secrets in production."
+)
+if not api_key:
+    st.info("Add your MISTRAL_API_KEY in Streamlit → Settings → Secrets, or paste it in the sidebar.")
+    st.stop()
+
+# --- Client & model ---
+client = Mistral(api_key=api_key)
 MODEL = "mistral-large-latest"
+SYSTEM_PROMPT = "You are a friendly assistant. Keep answers short and helpful."
 
-system_prompt = "You are a friendly assistant. Keep answers short and helpful."
+# --- Chat history ---
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-def chat_once(user_message: str) -> str:
-    resp = client.chat.complete(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
-        ],
-        temperature=0.7,
-        max_tokens=400
-    )
-    return resp.choices[0].message.content
+st.title("🤖 Mistral Chat")
 
-if __name__ == "__main__":
-    print("Mistral Bot 🤖  (type 'exit' to quit)")
-    while True:
-        msg = input("You: ").strip()
-        if msg.lower() in {"exit", "quit"}:
-            break
-        answer = chat_once(msg)
-        print("Bot:", answer)
+# Display history (hide the system message)
+for m in st.session_state.messages:
+    if m["role"] == "system":
+        continue
+    with st.chat_message("user" if m["role"] == "user" else "assistant"):
+        st.markdown(m["content"])
+
+# --- Input box ---
+user_msg = st.chat_input("Type your message...")
+if user_msg:
+    # show user msg
+    st.session_state.messages.append({"role": "user", "content": user_msg})
+    with st.chat_message("user"):
+        st.markdown(user_msg)
+
+    # call Mistral
+    try:
+        resp = client.chat.complete(
+            model=MODEL,
+            messages=st.session_state.messages,
+            temperature=0.7,
+            max_tokens=400,
+        )
+        bot_reply = resp.choices[0].message.content
+    except Exception as e:
+        bot_reply = f"Error: {e}"
+
+    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+    with st.chat_message("assistant"):
+        st.markdown(bot_reply)
+
+# --- Clear chat ---
+if st.sidebar.button("Clear chat"):
+    st.session_state.clear()
+    st.rerun()
