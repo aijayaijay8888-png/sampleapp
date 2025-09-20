@@ -1,12 +1,9 @@
 # filename: mistral_chat_bot.py
-# Save this as app.py if you want to run it easily: python app.py
-
-!pip install mistralai
+# Run with: python app.py
 
 from mistralai import Mistral
 
-# ⚠️ Directly embedding API keys is unsafe for sharing/production.
-# For local testing only.
+# ⚠️ Directly embedding API keys is unsafe. Use env vars in production.
 API_KEY = "5y9uaQXlvqH9dR3tVxxSsdl07G1ujJjw"
 
 client = Mistral(api_key=API_KEY)
